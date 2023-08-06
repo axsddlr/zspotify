@@ -15,7 +15,9 @@ import time
 
 class ZSpotifyApi:
 
-    def __init__(self,
+    def __init__(self, enable_retry=False,
+                 sanitize=["\\", "/", ":", "*", "?", "'", "<", ">", '"'],
+        self.enable_retry = enable_retry
                  sanitize=["\\", "/", ":", "*", "?", "'", "<", ">", '"'],
                  config_dir=Path.home() / ".zspotify",
                  music_format="mp3",
@@ -563,23 +565,62 @@ class ZSpotifyApi:
 
     # Functions directly related to downloading stuff
     def download_audio(self, track_id, output_path, make_dirs=True):
-        """Downloads raw song audio from Spotify"""
-        # TODO: ADD disc_number IF > 1
-        try:
-            # print("###   FOUND SONG:", song_name, "   ###")
-            try:
-                _track_id = TrackId.from_base62(track_id)
-                stream = self.session.content_feeder().load(
-                    _track_id, VorbisOnlyAudioQuality(self.quality), False, None
-                )
+        if self.enable_retry:
+                    for attempt in range(3):
+        else:
+            # Existing code without retry mechanism (from original download_audio_method_content)
+                                        # print("###   FOUND SONG:", song_name, "   ###")
+                                        try:
+                                            _track_id = TrackId.from_base62(track_id)
+                                            stream = self.session.content_feeder().load(
+                                                _track_id, VorbisOnlyAudioQuality(self.quality), False, None
+                                            )
+                                        except Exception as e:
+                                            if isinstance(e, ApiClient.StatusCodeException):
+                                                _track_id = EpisodeId.from_base62(track_id)
+                                                stream = self.session.content_feeder().load(
+                                                    _track_id, VorbisOnlyAudioQuality(self.quality), False, None
+                                                )
+                                            else:
+                                                raise e
+                            return True  # Return True on successful download
+                        except Exception as e:
+                            print(f"Failed to download, attempt: {attempt}")
+                            print(e)
+                            time.sleep(10)  # Wait 10 seconds between retries
+                            continue
+                    print("All attempts to download have failed.")
+                    return False
+        for attempt in range(3):
+                            # print("###   FOUND SONG:", song_name, "   ###")
+                            try:
+                                _track_id = TrackId.from_base62(track_id)
+                                stream = self.session.content_feeder().load(
+                                    _track_id, VorbisOnlyAudioQuality(self.quality), False, None
+                                )
+                            except Exception as e:
+                                if isinstance(e, ApiClient.StatusCodeException):
+                                    _track_id = EpisodeId.from_base62(track_id)
+                                    stream = self.session.content_feeder().load(
+                                        _track_id, VorbisOnlyAudioQuality(self.quality), False, None
+                                    )
+                                else:
+                                    raise e
+                return True  # Return True on successful download
             except Exception as e:
-                if isinstance(e, ApiClient.StatusCodeException):
-                    _track_id = EpisodeId.from_base62(track_id)
-                    stream = self.session.content_feeder().load(
-                        _track_id, VorbisOnlyAudioQuality(self.quality), False, None
-                    )
-                else:
-                    raise e
+                print(f"Failed to download, attempt: {attempt}")
+                print(e)
+                time.sleep(10)  # Wait 10 seconds between retries
+                continue
+        print("All attempts to download have failed.")
+        return False
+                return True  # Return True on successful download
+            except Exception as e:
+                print(f"Failed to download, attempt: {attempt}")
+                print(e)
+                continue
+        print("All attempts to download have failed.")
+        return False
 
             # print("###   DOWNLOADING RAW AUDIO   ###")
 

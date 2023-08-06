@@ -148,6 +148,7 @@ class ZSpotify:
 
     def parse_args(self):
         parser = argparse.ArgumentParser()
+        parser.add_argument("-r", "--retry", help="Enable retry mechanism for downloads", action="store_true")
         parser.add_argument(
             "search",
             help="Searches for a track, album, artist or playlist or download by url",
